@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cordiste Prospection AI — Tableau de bord</title>
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#111a2e; --panel2:#16213c; --line:#243149;
+      --txt:#e6edf7; --muted:#93a4c0; --accent:#38bdf8; --accent2:#22c55e;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:'Segoe UI',system-ui,Arial,sans-serif;background:var(--bg);color:var(--txt)}
+    header{padding:20px 28px;border-bottom:1px solid var(--line);display:flex;
+      align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+    header h1{font-size:19px;margin:0}
+    header .sub{color:var(--muted);font-size:13px}
+    .wrap{padding:24px 28px;max-width:1400px;margin:auto}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:22px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+    .card .n{font-size:30px;font-weight:700}
+    .card .l{color:var(--muted);font-size:13px;margin-top:4px}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+    input,select,button{font:inherit;color:var(--txt);background:var(--panel2);
+      border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+    input::placeholder{color:var(--muted)}
+    button{cursor:pointer;transition:.15s}
+    button:hover{border-color:var(--accent)}
+    button.primary{background:var(--accent);color:#001018;border:none;font-weight:600}
+    button.green{background:var(--accent2);color:#022; border:none;font-weight:600}
+    table{width:100%;border-collapse:collapse;background:var(--panel);border-radius:14px;overflow:hidden}
+    th,td{padding:11px 12px;text-align:left;font-size:13px;border-bottom:1px solid var(--line)}
+    th{background:var(--panel2);color:var(--muted);position:sticky;top:0;cursor:pointer;user-select:none}
+    tr:hover td{background:#132038}
+    a{color:var(--accent);text-decoration:none}
+    .tag{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line)}
+    .tabs{display:flex;gap:8px;margin-bottom:16px}
+    .tabs button{border-radius:999px}
+    .tabs button.active{background:var(--accent);color:#001018;border:none}
+    .muted{color:var(--muted)}
+    .empty{padding:40px;text-align:center;color:var(--muted)}
+    .badge{font-weight:600}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🧗 Cordiste Prospection AI</h1>
+      <div class="sub">Base commerciale autonome — Île-de-France · entreprises privées</div>
+    </div>
+    <div>
+      <button id="run" class="green">▶ Lancer une recherche</button>
+      <a href="/api/export.csv"><button class="primary">⬇ Export CSV</button></a>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="cards" id="cards"></div>
+
+    <div class="tabs">
+      <button data-tab="prospects" class="active">Prospects</button>
+      <button data-tab="journal">Historique des recherches</button>
+    </div>
+
+    <!-- Vue prospects -->
+    <div id="view-prospects">
+      <div class="toolbar">
+        <input id="q" placeholder="🔍 Rechercher (nom, ville, activité)" style="min-width:260px" />
+        <select id="dep">
+          <option value="">Tous départements</option>
+          <option>75</option><option>77</option><option>78</option><option>91</option>
+          <option>92</option><option>93</option><option>94</option><option>95</option>
+        </select>
+        <select id="sec">
+          <option value="">Tous secteurs</option>
+          <option value="gestion_immobiliere">Gestion immobilière</option>
+          <option value="agence_immobiliere">Agence immobilière</option>
+          <option value="hotel">Hôtel</option>
+          <option value="residence">Résidence</option>
+          <option value="centre_commercial">Centre commercial</option>
+        </select>
+        <select id="score">
+          <option value="0">Tous scores</option>
+          <option value="70">🔥 Très fort (≥70)</option>
+          <option value="40">🟠 Intéressant (≥40)</option>
+        </select>
+        <span class="muted" id="count"></span>
+      </div>
+      <div style="max-height:64vh;overflow:auto;border-radius:14px">
+        <table id="tbl">
+          <thead><tr>
+            <th data-sort="score">Score</th>
+            <th data-sort="nom">Entreprise</th>
+            <th>Activité</th>
+            <th data-sort="ville">Ville</th>
+            <th>Dép.</th>
+            <th>Téléphone</th>
+            <th>Email</th>
+            <th>Site</th>
+            <th>Contact</th>
+            <th data-sort="date">Découvert</th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Vue journal -->
+    <div id="view-journal" style="display:none">
+      <table>
+        <thead><tr>
+          <th>Date</th><th>Statut</th><th>Examinés</th><th>Nouveaux</th>
+          <th>MAJ</th><th>Doublons</th><th>Durée</th><th>Rapport</th><th>Message</th>
+        </tr></thead>
+        <tbody id="jrows"></tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+const $ = s => document.querySelector(s);
+let sort = {tri:"score", ordre:"desc"};
+
+async function loadStats(){
+  const s = await (await fetch("/api/stats")).json();
+  const hot = s.par_score["🔥 Très fort potentiel"] || 0;
+  const warm = s.par_score["🟠 Potentiel intéressant"] || 0;
+  $("#cards").innerHTML = `
+    <div class="card"><div class="n">${s.total}</div><div class="l">Prospects au total</div></div>
+    <div class="card"><div class="n">${s.aujourdhui}</div><div class="l">Découverts aujourd'hui</div></div>
+    <div class="card"><div class="n">${hot}</div><div class="l">🔥 Très fort potentiel</div></div>
+    <div class="card"><div class="n">${warm}</div><div class="l">🟠 Potentiel intéressant</div></div>`;
+}
+
+async function loadProspects(){
+  const params = new URLSearchParams({
+    q: $("#q").value, departement: $("#dep").value, secteur: $("#sec").value,
+    score_min: $("#score").value, tri: sort.tri, ordre: sort.ordre, limit: 500
+  });
+  const d = await (await fetch("/api/prospects?"+params)).json();
+  $("#count").textContent = d.total + " résultat(s)";
+  if(!d.items.length){ $("#rows").innerHTML =
+    `<tr><td colspan="10" class="empty">Aucun prospect. Lancez une recherche pour construire la base.</td></tr>`; return; }
+  $("#rows").innerHTML = d.items.map(p => `
+    <tr>
+      <td class="badge">${p.score_label||"—"}<br><span class="muted">${p.score??""}</span></td>
+      <td><strong>${p.nom||"—"}</strong>${p.siret?`<br><span class="muted">SIRET ${p.siret}</span>`:""}</td>
+      <td>${p.activite||"—"}</td>
+      <td>${p.ville||"—"}</td>
+      <td><span class="tag">${p.departement||"—"}</span></td>
+      <td>${p.telephone||"—"}</td>
+      <td>${p.email?`<a href="mailto:${p.email}">${p.email}</a>`:"—"}</td>
+      <td>${p.site_internet?`<a href="${p.site_internet}" target="_blank" rel="noopener">site</a>`:"—"}</td>
+      <td>${p.contact_nom||"—"}</td>
+      <td>${p.date_decouverte||"—"}</td>
+    </tr>`).join("");
+}
+
+async function loadJournal(){
+  const d = await (await fetch("/api/journal")).json();
+  $("#jrows").innerHTML = d.items.map(j => `
+    <tr>
+      <td>${(j.horodatage||"").replace("T"," ").slice(0,19)}</td>
+      <td>${j.statut==="succes"?"✅ succès":"⚠️ erreur"}</td>
+      <td>${j.examines}</td><td><strong>${j.nouveaux}</strong></td>
+      <td>${j.mis_a_jour}</td><td>${j.doublons}</td>
+      <td>${j.duree_secondes??"—"}s</td>
+      <td>${j.rapport_envoye||"—"}</td>
+      <td class="muted">${j.message||""}</td>
+    </tr>`).join("") || `<tr><td colspan="9" class="empty">Aucune recherche enregistrée.</td></tr>`;
+}
+
+// Interactions
+["q","dep","sec","score"].forEach(id => $("#"+id).addEventListener("input", loadProspects));
+document.querySelectorAll("th[data-sort]").forEach(th => th.addEventListener("click", () => {
+  const t = th.dataset.sort;
+  sort = {tri:t, ordre: (sort.tri===t && sort.ordre==="desc") ? "asc":"desc"};
+  loadProspects();
+}));
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  const t = b.dataset.tab;
+  $("#view-prospects").style.display = t==="prospects"?"block":"none";
+  $("#view-journal").style.display = t==="journal"?"block":"none";
+  if(t==="journal") loadJournal();
+}));
+$("#run").addEventListener("click", async () => {
+  const btn = $("#run"); btn.disabled=true; btn.textContent="⏳ Recherche en cours…";
+  try{
+    const r = await (await fetch("/api/run",{method:"POST"})).json();
+    btn.textContent = `✅ ${r.nouveaux} nouveaux`;
+    await loadStats(); await loadProspects(); await loadJournal();
+  }catch(e){ btn.textContent="⚠️ Erreur"; }
+  setTimeout(()=>{btn.disabled=false; btn.textContent="▶ Lancer une recherche";}, 2500);
+});
+
+loadStats(); loadProspects();
+</script>
+</body>
+</html>
