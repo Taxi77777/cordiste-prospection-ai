@@ -44,6 +44,19 @@ class SMTPConfig:
 
 
 @dataclass
+class AIConfig:
+    """IA optionnelle via LLM open source local (Ollama) ou endpoint compatible OpenAI."""
+
+    enabled: bool = _get_bool("AI_ENABLED", False)
+    # Ollama expose une API compatible OpenAI sur /v1.
+    base_url: str = os.getenv("AI_BASE_URL", "http://localhost:11434/v1")
+    model: str = os.getenv("AI_MODEL", "qwen2.5:3b")
+    # Ollama ignore la clé ; requise seulement pour un service hébergé (Groq/OpenRouter…).
+    api_key: str = os.getenv("AI_API_KEY", "ollama")
+    timeout: int = _get_int("AI_TIMEOUT", 60)
+
+
+@dataclass
 class AppConfig:
     # Base de données : SQLite par défaut, PostgreSQL possible via DATABASE_URL.
     database_url: str = os.getenv("DATABASE_URL", f"sqlite:///{DATA_DIR / 'prospects.db'}")
@@ -73,6 +86,7 @@ class AppConfig:
     only_active: bool = _get_bool("ONLY_ACTIVE", True)
 
     smtp: SMTPConfig = field(default_factory=SMTPConfig)
+    ai: AIConfig = field(default_factory=AIConfig)
 
 
 settings = AppConfig()
