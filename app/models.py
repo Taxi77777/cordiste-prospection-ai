@@ -54,6 +54,9 @@ class Prospect(Base):
     # Score commercial
     score: Mapped[int | None] = mapped_column(Integer, default=0)
     score_label: Mapped[str | None] = mapped_column(String(40))  # 🔥 / 🟠 / ⚪
+    # Champs alimentés par l'IA (optionnels).
+    score_justification: Mapped[str | None] = mapped_column(Text)
+    message_prospection: Mapped[str | None] = mapped_column(Text)
 
     # Traçabilité
     source: Mapped[str | None] = mapped_column(String(80))
@@ -88,6 +91,8 @@ class Prospect(Base):
             "chiffre_affaires": self.chiffre_affaires,
             "score": self.score,
             "score_label": self.score_label,
+            "score_justification": self.score_justification,
+            "message_prospection": self.message_prospection,
             "source": self.source,
             "date_decouverte": self.date_decouverte.isoformat() if self.date_decouverte else None,
             "date_maj": self.date_maj.isoformat() if self.date_maj else None,
