@@ -1,0 +1,15 @@
+# Timer systemd : lance la recherche chaque jour à 07:30 (heure serveur)
+# Installation :
+#   sudo cp deploy/cordiste-prospection.service /etc/systemd/system/
+#   sudo cp deploy/cordiste-prospection.timer /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now cordiste-prospection.timer
+# NB : dans ce mode, mettez ENABLE_SCHEDULER=false dans .env pour éviter le doublon.
+[Unit]
+Description=Déclenche la recherche quotidienne Cordiste Prospection AI
+
+[Timer]
+OnCalendar=*-*-* 07:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
