@@ -1,0 +1,13 @@
+# Service oneshot déclenché par le timer : exécute une recherche + rapport
+# (alternative au scheduler interne, si vous préférez systemd/cron)
+[Unit]
+Description=Cordiste Prospection AI - recherche quotidienne
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=cordiste
+WorkingDirectory=/opt/cordiste-prospection-ai
+EnvironmentFile=/opt/cordiste-prospection-ai/.env
+ExecStart=/opt/cordiste-prospection-ai/.venv/bin/python -m scripts.run_daily
