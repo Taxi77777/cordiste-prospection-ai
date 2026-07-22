@@ -76,11 +76,13 @@ def compute_score(candidate: dict) -> tuple[int, str]:
         score += 3
 
     score = max(0, min(100, score))
+    return score, label_for_score(score)
 
+
+def label_for_score(score: int) -> str:
+    """Renvoie le label 🔥/🟠/⚪ correspondant à un score (utilisé aussi par l'IA)."""
     if score >= 70:
-        label = LABEL_HOT
-    elif score >= 40:
-        label = LABEL_WARM
-    else:
-        label = LABEL_COLD
-    return score, label
+        return LABEL_HOT
+    if score >= 40:
+        return LABEL_WARM
+    return LABEL_COLD
