@@ -1,0 +1,7 @@
+# Alternative cron classique (si vous n'utilisez pas systemd ni le scheduler interne).
+# Éditez avec :  crontab -e   puis collez la ligne ci-dessous.
+# Recherche + rapport chaque jour à 07h30 :
+
+30 7 * * * cd /opt/cordiste-prospection-ai && /opt/cordiste-prospection-ai/.venv/bin/python -m scripts.run_daily >> /opt/cordiste-prospection-ai/data/cron.log 2>&1
+
+# Pensez à mettre ENABLE_SCHEDULER=false dans .env pour éviter un double envoi.
