@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    container_name: cordiste-prospection-ai# edit-capture
+    container_name: cordiste-prospection-ai
     restart: unless-stopped
     env_file:
       - .env
@@ -15,6 +15,22 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  # IA open source locale (optionnelle). Démarrez avec :  docker compose --profile ai up -d
+  # Puis téléchargez un modèle :  docker compose exec ollama ollama pull qwen2.5:3b
+  # Dans .env : AI_ENABLED=true et AI_BASE_URL=http://ollama:11434/v1
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cordiste-ollama
+    profiles: ["ai"]
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+
+volumes:
+  ollama:
 
 # Pour évoluer vers PostgreSQL, décommentez le service ci-dessous
 # et renseignez DATABASE_URL dans .env :
