@@ -1,0 +1,33 @@
+services:
+  app:
+    build: .
+    container_name: cordiste-prospection-ai
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persistance de la base SQLite (la base n'est jamais réinitialisée)
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+# Pour évoluer vers PostgreSQL, décommentez le service ci-dessous
+# et renseignez DATABASE_URL dans .env :
+#
+#  db:
+#    image: postgres:16-alpine
+#    restart: unless-stopped
+#    environment:
+#      POSTGRES_USER: cordiste
+#      POSTGRES_PASSWORD: change-me
+#      POSTGRES_DB: cordiste
+#    volumes:
+#      - pgdata:/var/lib/postgresql/data
+#
+# volumes:
+#   pgdata:
