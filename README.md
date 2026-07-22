@@ -38,6 +38,9 @@ attribue un **score commercial** et vous envoie un **rapport quotidien par email
 - 🧠 **Mémoire permanente** : détection de doublons sur SIRET, SIREN, site, email,
   téléphone et empreinte nom + ville. Les fiches existantes sont **mises à jour**, pas dupliquées.
 - 🏆 **Score commercial automatique** : 🔥 / 🟠 / ⚪.
+- 🤖 **IA open source optionnelle** (via [Ollama](https://ollama.com), gratuite) : scoring
+  intelligent + justification, message de prospection personnalisé, résumé du rapport.
+  Voir [docs/AI.md](docs/AI.md).
 - 📊 **Tableau de bord web moderne** : total, nouveaux, recherche, filtres, classement,
   export CSV, historique des recherches.
 - 📧 **Rapport quotidien par email** via votre hébergement LWS.
@@ -69,6 +72,28 @@ dans la base et restent vides tant qu'elles ne sont pas complétées. L'architec
 prévoit une **interface d'enrichissement** (`app/sources/base.py`) : on peut brancher
 plus tard une source complémentaire (ex. Google Places API, annuaire pro) sans toucher
 au reste du code. Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+---
+
+## IA open source (optionnelle)
+
+En plus des règles, le projet peut brancher un **LLM open source auto-hébergé**
+(via [Ollama](https://ollama.com), **gratuit**, sans clé payante) pour :
+
+- un **scoring intelligent** avec justification en une phrase,
+- un **message de prospection** personnalisé par entreprise,
+- un **résumé IA** des meilleurs prospects dans le rapport quotidien.
+
+Activation en deux commandes (Docker) :
+
+```bash
+docker compose --profile ai up -d --build
+docker compose exec ollama ollama pull qwen2.5:3b   # puis AI_ENABLED=true dans .env
+```
+
+C'est **désactivé par défaut** (`AI_ENABLED=false`) et sans effet si le modèle est
+injoignable : l'app retombe alors sur le scoring par règles. Détails et choix de
+modèle : [docs/AI.md](docs/AI.md).
 
 ---
 
