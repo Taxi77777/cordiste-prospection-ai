@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    container_name: cordiste-prospection-ai
+    container_name: cordiste-prospection-ai# edit-capture
     restart: unless-stopped
     env_file:
       - .env
