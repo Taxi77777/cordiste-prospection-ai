@@ -1,0 +1,3 @@
+# Ce dossier contient la base SQLite générée automatiquement (data/prospects.db).
+# La base est créée VIDE au premier lancement puis remplie par l'IA.
+# Le fichier .db lui-même est ignoré par git (voir .gitignore).
