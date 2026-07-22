@@ -12,10 +12,10 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from . import dedup
+from . import ai, dedup
 from .config import settings
 from .models import JournalRecherche, Prospect
-from .scoring import compute_score
+from .scoring import compute_score, label_for_score
 from .sources import ProspectSource, SireneSource
 
 logger = logging.getLogger(__name__)
@@ -69,6 +69,21 @@ def run_prospection(
                 score, label = compute_score(cand)
                 cand["score"] = score
                 cand["score_label"] = label
+                cand["score_justification"] = None
+                cand["message_prospection"] = None
+
+                # Enrichissement IA optionnel : n'écrase les règles que si l'IA répond.
+                if ai.is_available():
+                    ai_res = ai.score_prospect(cand)
+                    if ai_res:
+                        score = ai_res["score"]
+                        label = label_for_score(score)
+                        cand["score"] = score
+                        cand["score_label"] = label
+                        cand["score_justification"] = ai_res.get("justification")
+                    msg = ai.generate_outreach(cand)
+                    if msg:
+                        cand["message_prospection"] = msg
 
                 existing = dedup.find_existing(session, cand)
                 if existing:
@@ -101,6 +116,8 @@ def run_prospection(
                     chiffre_affaires=cand.get("chiffre_affaires"),
                     score=score,
                     score_label=label,
+                    score_justification=cand.get("score_justification"),
+                    message_prospection=cand.get("message_prospection"),
                     source=cand.get("source"),
                     date_decouverte=date.today(),
                     fingerprint=dedup.make_fingerprint(cand.get("nom"), cand.get("ville")),
