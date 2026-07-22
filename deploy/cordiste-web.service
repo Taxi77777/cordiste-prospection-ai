@@ -1,0 +1,20 @@
+# Service systemd : tableau de bord + API + scheduler interne
+# Installation :
+#   sudo cp deploy/cordiste-web.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now cordiste-web
+[Unit]
+Description=Cordiste Prospection AI (web + scheduler)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cordiste
+WorkingDirectory=/opt/cordiste-prospection-ai
+EnvironmentFile=/opt/cordiste-prospection-ai/.env
+ExecStart=/opt/cordiste-prospection-ai/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
