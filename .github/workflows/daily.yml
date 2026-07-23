@@ -1,0 +1,38 @@
+name: Prospection quotidienne
+
+on:
+  schedule:
+    - cron: '30 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Recherche de prospects + rapport email
+        env:
+          SMTP_HOST: mail.cordiste-ile-de-france.fr
+          SMTP_PORT: '465'
+          SMTP_SECURE: 'true'
+          SMTP_USER: contact@cordiste-ile-de-france.fr
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_HOST_BACKUP: mail01.lwspanel.com
+          REPORT_RECIPIENT: contact@cordiste-ile-de-france.fr
+          ENABLE_SCHEDULER: 'false'
+          DATABASE_URL: sqlite:///data/prospects.db
+        run: python -m scripts.run_daily
+      - name: Sauvegarde de la base de prospects
+        run: |
+          git config user.name "cordiste-bot"
+          git config user.email "contact@cordiste-ile-de-france.fr"
+          git add -f data/prospects.db
+          git commit -m "MAJ base prospects" || echo "aucun changement"
+          git push
