@@ -25,19 +25,27 @@ jobs:
           from email.mime.text import MIMEText
           from email.utils import formataddr
           user=os.environ['SMTP_USER']; pwd=os.environ['SMTP_PASSWORD']; to=os.environ['TO']
-          msg=MIMEText("Test d'envoi depuis Cordiste Ile-de-France via GitHub. Si vous recevez ce message, l'envoi automatique par email fonctionne.", "plain", "utf-8")
-          msg['Subject']="Test - Cordiste Prospection AI"
-          msg['From']=formataddr(("Cordiste Ile-de-France", user))
-          msg['To']=to
+          print("user=",user," pwd_len=",len(pwd))
+          def build():
+              m=MIMEText("Test Cordiste via GitHub.","plain","utf-8")
+              m['Subject']="Test - Cordiste Prospection AI"
+              m['From']=formataddr(("Cordiste Ile-de-France",user)); m['To']=to
+              return m
           ctx=ssl.create_default_context()
-          last=None
+          ok=False
           for host in [os.environ['SMTP_HOST'], os.environ['SMTP_HOST_BACKUP']]:
               try:
-                  with smtplib.SMTP_SSL(host,465,context=ctx,timeout=30) as s:
-                      s.login(user,pwd); s.send_message(msg)
-                  print("OK via",host); break
+                  with smtplib.SMTP_SSL(host,465,context=ctx,timeout=25) as s:
+                      s.login(user,pwd); s.send_message(build())
+                  print("OK 465 SSL via",host); ok=True; break
               except Exception as e:
-                  last=e; print("Echec via",host,":",e)
-          else:
-              raise SystemExit("Envoi impossible: "+str(last))
+                  print("FAIL 465",host,repr(e))
+              try:
+                  with smtplib.SMTP(host,587,timeout=25) as s:
+                      s.ehlo(); s.starttls(context=ctx); s.ehlo(); s.login(user,pwd); s.send_message(build())
+                  print("OK 587 STARTTLS via",host); ok=True; break
+              except Exception as e:
+                  print("FAIL 587",host,repr(e))
+          if not ok:
+              raise SystemExit("Tous les essais ont echoue")
           PY
