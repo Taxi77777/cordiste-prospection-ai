@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       to:
-        description: Destinataire du test
+        description: Destinataire
         required: true
-        default: rachidleg77@gmail.com
+        default: contact@cordiste-ile-de-france.fr
 
 jobs:
   send:
     runs-on: ubuntu-latest
     steps:
-      - name: Envoyer un email de test
+      - name: Envoyer l'email de presentation
         env:
           SMTP_HOST: mail.cordiste-ile-de-france.fr
           SMTP_HOST_BACKUP: mail01.lwspanel.com
@@ -25,27 +25,18 @@ jobs:
           from email.mime.text import MIMEText
           from email.utils import formataddr
           user=os.environ['SMTP_USER']; pwd=os.environ['SMTP_PASSWORD']; to=os.environ['TO']
-          print("user=",user," pwd_len=",len(pwd))
-          def build():
-              m=MIMEText("Test Cordiste via GitHub.","plain","utf-8")
-              m['Subject']="Test - Cordiste Prospection AI"
-              m['From']=formataddr(("Cordiste Ile-de-France",user)); m['To']=to
-              return m
+          corps = "Bonjour,\n\nJe me permets de vous présenter Cordiste Île-de-France, spécialiste des travaux sur corde et en hauteur au service des professionnels de l'immobilier et de l'hôtellerie en Île-de-France.\n\nNos accès sur corde évitent l'échafaudage : moins de coûts, moins de délais, moins de gêne pour vos occupants. Nous réalisons :\n- Nettoyage de façades et vitres en hauteur\n- Désamiantage\n- Inspection et diagnostic de bâtiments\n- Maintenance et réparations difficiles d'accès\n- Sécurisation (purge, filets, dispositifs anti-pigeons)\n\nVos bâtiments nécessitent un entretien régulier en hauteur : nous serions ravis de vous établir un devis gratuit et sans engagement.\n\nJe reste à votre disposition au 07 43 29 35 53.\n\nBien cordialement,\nCordiste Île-de-France\nTél : 07 43 29 35 53\nEmail : contact@cordiste-ile-de-france.fr\nSite : https://cordiste-ile-de-france.fr\n\nConformément au RGPD, si vous ne souhaitez plus recevoir nos communications, répondez STOP à ce message."
+          msg=MIMEText(corps, "plain", "utf-8")
+          msg['Subject']="Entretien de façades & travaux en hauteur - Cordiste Île-de-France"
+          msg['From']=formataddr(("Cordiste Île-de-France", user)); msg['To']=to
           ctx=ssl.create_default_context()
-          ok=False
           for host in [os.environ['SMTP_HOST'], os.environ['SMTP_HOST_BACKUP']]:
               try:
                   with smtplib.SMTP_SSL(host,465,context=ctx,timeout=25) as s:
-                      s.login(user,pwd); s.send_message(build())
-                  print("OK 465 SSL via",host); ok=True; break
+                      s.login(user,pwd); s.send_message(msg)
+                  print("OK via",host); break
               except Exception as e:
-                  print("FAIL 465",host,repr(e))
-              try:
-                  with smtplib.SMTP(host,587,timeout=25) as s:
-                      s.ehlo(); s.starttls(context=ctx); s.ehlo(); s.login(user,pwd); s.send_message(build())
-                  print("OK 587 STARTTLS via",host); ok=True; break
-              except Exception as e:
-                  print("FAIL 587",host,repr(e))
-          if not ok:
-              raise SystemExit("Tous les essais ont echoue")
+                  print("FAIL",host,repr(e))
+          else:
+              raise SystemExit("Envoi impossible")
           PY
