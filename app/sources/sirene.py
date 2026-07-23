@@ -3,10 +3,8 @@
 API ouverte, gratuite, sans clé : https://recherche-entreprises.api.gouv.fr
 Base officielle des entreprises françaises — usage 100 % conforme.
 
-Elle fournit : identité, SIREN/SIRET, code NAF, adresse, effectifs, catégorie,
-chiffre d'affaires et dirigeants. Le téléphone / email / site ne sont PAS fournis
-par cette source : ces champs restent vides et pourront être complétés plus tard
-par une source d'enrichissement (voir sources/base.py).
+Gère le débit : l'API limite le nombre de requêtes par seconde (sinon 429).
+On espace les appels et on réessaie automatiquement en cas de 429/5xx.
 """
 from __future__ import annotations
 
@@ -25,6 +23,10 @@ logger = logging.getLogger(__name__)
 API_URL = "https://recherche-entreprises.api.gouv.fr/search"
 USER_AGENT = "cordiste-prospection-ai/1.0 (+https://cordiste-ile-de-france.fr)"
 
+# Rythme respectueux de l'API publique (limite ~7 req/s ; les rafales renvoient 429).
+THROTTLE_SECONDS = 1.2
+MAX_RETRIES = 4
+
 
 class SireneSource(ProspectSource):
     name = "SIRENE / recherche-entreprises.api.gouv.fr"
@@ -33,7 +35,24 @@ class SireneSource(ProspectSource):
         self.http = session or requests.Session()
         self.http.headers.update({"User-Agent": USER_AGENT})
 
-    # -- Appel HTTP unitaire ------------------------------------------------
+    # -- Appel HTTP avec throttle + réessais -------------------------------
+    def _get(self, params: dict) -> dict:
+        backoff = 5.0
+        for attempt in range(1, MAX_RETRIES + 1):
+            resp = self.http.get(API_URL, params=params, timeout=settings.request_timeout)
+            if resp.status_code == 429 or resp.status_code >= 500:
+                wait = float(resp.headers.get("Retry-After") or backoff)
+                logger.warning("SIRENE %s — pause %.0fs (tentative %s/%s)",
+                               resp.status_code, wait, attempt, MAX_RETRIES)
+                time.sleep(wait)
+                backoff = min(backoff * 2, 60)
+                continue
+            resp.raise_for_status()
+            time.sleep(THROTTLE_SECONDS)  # espace les requêtes pour éviter les 429
+            return resp.json()
+        logger.warning("SIRENE : abandon après %s tentatives (params=%s)", MAX_RETRIES, params)
+        return {"results": [], "total_pages": 0}
+
     def _query(self, naf: str, departement: str, page: int) -> dict:
         params = {
             "activite_principale": naf,
@@ -43,9 +62,7 @@ class SireneSource(ProspectSource):
             "per_page": settings.per_page,
         }
         params = {k: v for k, v in params.items() if v is not None}
-        resp = self.http.get(API_URL, params=params, timeout=settings.request_timeout)
-        resp.raise_for_status()
-        return resp.json()
+        return self._get(params)
 
     # -- Normalisation d'un résultat API -> candidat ------------------------
     @staticmethod
@@ -54,7 +71,6 @@ class SireneSource(ProspectSource):
         naf = item.get("activite_principale") or siege.get("activite_principale")
         sector = sector_for_naf(naf)
 
-        # Contact = premier dirigeant personne physique, si diffusé publiquement.
         contact_nom = None
         for d in item.get("dirigeants") or []:
             if d.get("type_dirigeant") == "personne physique":
@@ -65,7 +81,6 @@ class SireneSource(ProspectSource):
                     contact_nom = full
                     break
 
-        # Chiffre d'affaires : dernière année disponible.
         ca = None
         finances = item.get("finances") or {}
         if finances:
@@ -88,9 +103,9 @@ class SireneSource(ProspectSource):
             "ville": siege.get("libelle_commune"),
             "code_postal": siege.get("code_postal"),
             "departement": siege.get("departement"),
-            "telephone": None,          # non fourni par SIRENE
-            "email": None,              # non fourni par SIRENE
-            "site_internet": None,      # non fourni par SIRENE
+            "telephone": None,
+            "email": None,
+            "site_internet": None,
             "contact_nom": contact_nom,
             "siret": siege.get("siret"),
             "siren": item.get("siren"),
@@ -128,4 +143,3 @@ class SireneSource(ProspectSource):
 
             if page >= (data.get("total_pages") or 1):
                 break
-            time.sleep(0.2)  # courtoisie envers l'API publique
