@@ -1,0 +1,43 @@
+name: Test email
+
+on:
+  workflow_dispatch:
+    inputs:
+      to:
+        description: Destinataire du test
+        required: true
+        default: rachidleg77@gmail.com
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Envoyer un email de test
+        env:
+          SMTP_HOST: mail.cordiste-ile-de-france.fr
+          SMTP_HOST_BACKUP: mail01.lwspanel.com
+          SMTP_USER: contact@cordiste-ile-de-france.fr
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          TO: ${{ github.event.inputs.to }}
+        run: |
+          python - <<'PY'
+          import os, smtplib, ssl
+          from email.mime.text import MIMEText
+          from email.utils import formataddr
+          user=os.environ['SMTP_USER']; pwd=os.environ['SMTP_PASSWORD']; to=os.environ['TO']
+          msg=MIMEText("Test d'envoi depuis Cordiste Ile-de-France via GitHub. Si vous recevez ce message, l'envoi automatique par email fonctionne.", "plain", "utf-8")
+          msg['Subject']="Test - Cordiste Prospection AI"
+          msg['From']=formataddr(("Cordiste Ile-de-France", user))
+          msg['To']=to
+          ctx=ssl.create_default_context()
+          last=None
+          for host in [os.environ['SMTP_HOST'], os.environ['SMTP_HOST_BACKUP']]:
+              try:
+                  with smtplib.SMTP_SSL(host,465,context=ctx,timeout=30) as s:
+                      s.login(user,pwd); s.send_message(msg)
+                  print("OK via",host); break
+              except Exception as e:
+                  last=e; print("Echec via",host,":",e)
+          else:
+              raise SystemExit("Envoi impossible: "+str(last))
+          PY
